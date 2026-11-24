@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Launchsheet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Create and update App Store Connect apps from a CSV spreadsheet. Google Play coming soon.",
   "homepage_url": "https://github.com/shahsawoodshinwari/launchsheet",
   "minimum_chrome_version": "114",
