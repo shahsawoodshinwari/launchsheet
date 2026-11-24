@@ -1,10 +1,19 @@
-# Launchsheet
+<p align="center">
+  <img src="icons/icon-128.png" alt="Launchsheet logo" width="96" height="96">
+</p>
 
-**Set up your App Store listings from a spreadsheet.** Launchsheet is a Chrome extension that reads a CSV and creates or updates apps in App Store Connect for you: names, descriptions, keywords, categories, App Review details, and more. Google Play support is planned.
+<h1 align="center">Launchsheet</h1>
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
-![Manifest V3](https://img.shields.io/badge/Chrome-Manifest%20V3-green.svg)
-![Status: early](https://img.shields.io/badge/status-early%20(0.x)-orange.svg)
+<p align="center">
+  <b>Set up your App Store listings from a spreadsheet.</b><br>
+  A Chrome extension that reads a CSV and creates or updates apps in App Store Connect for you: names, descriptions, keywords, categories, App Review details, and more. Google Play support is planned.
+</p>
+
+<p align="center">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg">
+  <img alt="Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-green.svg">
+  <img alt="Status: early" src="https://img.shields.io/badge/status-early%20(0.x)-orange.svg">
+</p>
 
 > **Unofficial.** Launchsheet is not affiliated with or endorsed by Apple. It talks to the same private web API that the App Store Connect website uses, through your own logged-in session. That API is undocumented and can change without notice. Use it with your own account, try a dry run first, and review changes in App Store Connect. See [Limitations](#limitations).
 
