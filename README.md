@@ -5,8 +5,8 @@
 <h1 align="center">Launchsheet</h1>
 
 <p align="center">
-  <b>Set up your App Store listings from a spreadsheet.</b><br>
-  A Chrome extension that reads a CSV and creates or updates apps in App Store Connect for you: names, descriptions, keywords, categories, App Review details, and more. Google Play support is planned.
+  <b>Set up your App Store and Google Play listings from a spreadsheet.</b><br>
+  A Chrome extension that reads a CSV and creates or updates apps in App Store Connect and Google Play Console for you: names, descriptions, keywords, categories, App Review details, store listings per language, and more.
 </p>
 
 <p align="center">
@@ -15,7 +15,7 @@
   <img alt="Status: early" src="https://img.shields.io/badge/status-early%20(0.x)-orange.svg">
 </p>
 
-> **Unofficial.** Launchsheet is not affiliated with or endorsed by Apple. It talks to the same private web API that the App Store Connect website uses, through your own logged-in session. That API is undocumented and can change without notice. Use it with your own account, try a dry run first, and review changes in App Store Connect. See [Limitations](#limitations).
+> **Unofficial.** Launchsheet is not affiliated with or endorsed by Apple. It talks to the same private web API that the App Store Connect website uses, through your own logged-in session. That API is undocumented and can change without notice. Use it with your own account, try a dry run first, and review changes in App Store Connect. The Google Play side has no API at all, so it drives the Play Console pages like an automated test; it is newer and less proven than the iOS side. See [Limitations](#limitations).
 
 ## Features
 
@@ -31,12 +31,13 @@
 
 | Area | Fields |
 |---|---|
-| App creation | bundle ID, SKU, name, primary locale, first version |
-| Store listing (per locale) | name, subtitle, description, keywords, promotional text, what's new, support URL, marketing URL, privacy policy URL |
-| App information | copyright, primary and secondary category, new version string |
-| App Review information | contact first/last name, email, phone, demo account username and password, review notes |
+| App Store: app creation | bundle ID, SKU, name, primary locale, first version |
+| App Store: store listing (per locale) | name, subtitle, description, keywords, promotional text, what's new, support URL, marketing URL, privacy policy URL |
+| App Store: app information | copyright, primary and secondary category, new version string |
+| App Store: App Review information | contact first/last name, email, phone, demo account username and password, review notes |
+| Google Play (early) | create the app (name, package name, default language, app or game, free or paid, declarations); store listing per language: name, short description, full description (saved as draft) |
 
-Not covered yet: screenshots and previews, age rating, pricing and availability, builds, in-app purchases, and Google Play.
+Not covered yet: screenshots and previews, age rating, pricing and availability, builds and in-app purchases on both stores; on Google Play also contact details, privacy policy, categories, content rating, data safety and app access.
 
 ## Install
 
@@ -56,7 +57,7 @@ Then load the cloned folder with **Load unpacked** as above. Requires Chrome 114
 
 ## Usage
 
-1. Sign in at [appstoreconnect.apple.com](https://appstoreconnect.apple.com) in a Chrome tab and keep it open.
+1. Sign in at [appstoreconnect.apple.com](https://appstoreconnect.apple.com) (App Store) or open your developer account at [play.google.com/console](https://play.google.com/console) (Google Play) in a Chrome tab and keep it open.
 2. On that tab, click the Launchsheet toolbar icon to open the side panel. The icon and panel are only enabled on App Store Connect tabs, and the panel only acts on the tab it was opened from.
 3. **Choose file** and pick your CSV. The panel validates it and shows a preview. Fix any errors it lists.
 4. Leave **Dry run** on and press **Run dry run**. Read the activity log.
@@ -75,8 +76,8 @@ One row per app per locale. Columns can be in any order, and unknown columns are
 
 | Column | Level | Notes |
 |---|---|---|
-| `platform` | row | `ios` (default). `android` rows are skipped for now. |
-| `bundle_id` | app | **Required.** Matched exactly. |
+| `platform` | row | `ios` (default) or `android`. Use the **Google Play** tab in the panel to run the Android rows. |
+| `bundle_id` | app | **Required.** On iOS the bundle ID, on Android the package name (for example `com.example.app`). Matched exactly. The same ID can appear once per platform. |
 | `sku` | app | Required only when creating an app. |
 | `primary_locale` | app | Default `en-US`. |
 | `version` | app | Used when creating, and to create a new version when none is editable. |
@@ -90,6 +91,10 @@ One row per app per locale. Columns can be in any order, and unknown columns are
 | `whats_new` | row | Max 4000. Skipped automatically on an app's first version. |
 | `support_url`, `marketing_url`, `privacy_policy_url` | row | |
 | `contact_first_name`, `contact_last_name`, `contact_email`, `contact_phone_number` | app | App Review contact. Phone number should include the country code, such as `+1 555 123 4567`. |
+| `short_description` | row | Android only. Max 80 characters, one line. |
+| `app_type` | app | Android only: `app` (default) or `game`. Used when creating. |
+| `pricing` | app | Android only: `free` (default) or `paid`. Used when creating. |
+| `accept_declarations` | app | Android only. `yes` confirms the Developer Program Policies and US export laws declarations so Launchsheet may create the app. Without it, existing apps are still updated. |
 | `username`, `password` | app | Demo account for reviewers. Setting either one marks sign-in as required. |
 | `notes` | app | Review notes, max 4000. |
 
@@ -105,9 +110,13 @@ CSV  ->  side panel (parse + validate)  ->  content script in the App Store Conn
                                               4. update app info and categories
 ```
 
+### Google Play
+
+Google's Play Developer API cannot create apps and needs a service-account key, and Play Console's own web API is obfuscated. Launchsheet therefore drives the real Console pages, like an end-to-end test: the side panel navigates the tab, injects `content/play.js`, and sends one command per page (list apps, create app, edit the default store listing). Elements are found through the Console's internal `debug-id` attributes, values are set with the events Angular expects, and every save is **Save as draft**. Nothing is published. Apps are matched by exact package name from the Console home page.
+
 ## Privacy and security
 
-- Launchsheet only requests access to `https://appstoreconnect.apple.com/*`. It does not contact any other server and has no analytics. The toolbar icon and side panel stay disabled on every other site, and a run only touches the single tab it was opened from.
+- Launchsheet only requests access to `https://appstoreconnect.apple.com/*` and `https://play.google.com/console/*`. It does not contact any other server and has no analytics. The toolbar icon and side panel stay disabled on every other site, and a run only touches the single tab it was opened from.
 - Your CSV is read in the browser and never uploaded anywhere except to App Store Connect as part of the requested changes.
 - Passwords from the CSV are sent to App Store Connect but are never written to the activity log.
 - **Keep CSVs that contain demo passwords out of git and shared folders.** This repository's `.gitignore` excludes `*.csv` except the sample.
@@ -118,12 +127,14 @@ Found a vulnerability? Please open a private security advisory under the reposit
 
 - Built on undocumented endpoints. If Apple changes them, a step may fail until the extension is updated.
 - Tested on a single account so far. Some steps, such as categories and review details, are newer and less proven than the listing text steps. Always run a dry run first.
+- Google Play automation drives pages Google can redesign at any time. Reading apps and listings and the dry run were checked against a live Console; creating an app, adding languages and saving a draft have **not** been run end to end yet. Try them on a throwaway app first.
 - Automating a web service you're signed in to may be restricted by that service's terms. You are responsible for using this tool in line with the terms that apply to your account.
 - Screenshots, pricing, age ratings and builds must still be done in App Store Connect.
 
 ## Roadmap
 
-- [ ] Google Play Console support
+- [x] Google Play Console: create app and store listings (early)
+- [ ] Google Play: contact details, privacy policy, categories, app access
 - [ ] `.xlsx` upload (CSV only today)
 - [ ] Screenshots and app previews
 - [ ] Age rating, pricing and availability
