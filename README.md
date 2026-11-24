@@ -151,16 +151,19 @@ Load the repository folder as an unpacked extension and use the reload button on
 
 ### Releasing
 
-1. Update the version in both `manifest.json` and `package.json` (a test enforces they match).
-2. Add an entry to `CHANGELOG.md`.
-3. Commit, then tag and push:
+1. Add an entry to `CHANGELOG.md`.
+2. Copy `release-notes/TEMPLATE.md` to `release-notes/vX.Y.Z.md` and fill it in.
+3. Commit those files so the working tree is clean.
+4. Bump, tag and push:
 
    ```bash
-   git tag -a vX.Y.Z -m "vX.Y.Z"
+   npm version patch -m "Release v%s"   # or minor / major
    git push origin main vX.Y.Z
    ```
 
-The Release workflow runs the tests, checks the tag against the manifest version, builds `launchsheet-vX.Y.Z.zip` and publishes a GitHub release.
+   `npm version` updates `package.json`, syncs `manifest.json` (via `scripts/sync-version.mjs`), commits and creates the `vX.Y.Z` tag.
+
+The Release workflow runs the tests, checks the tag against the manifest version, builds `launchsheet-vX.Y.Z.zip` and publishes a GitHub release using `release-notes/vX.Y.Z.md` (or generated notes if that file is missing).
 
 ## Contributing
 

@@ -36,5 +36,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          notes="release-notes/${GITHUB_REF_NAME}.md"
+          if [ -f "$notes" ]; then
+            notes_flag="--notes-file $notes"
+          else
+            echo "No $notes found, falling back to generated notes"
+            notes_flag="--generate-notes"
+          fi
           gh release create "$GITHUB_REF_NAME" "dist/launchsheet-${GITHUB_REF_NAME}.zip" \
-            --title "$GITHUB_REF_NAME" --generate-notes
+            --title "$GITHUB_REF_NAME" $notes_flag

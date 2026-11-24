@@ -4,6 +4,11 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-25
+
+### Fixed
+- Re-opening the panel after reloading the extension could leave an older copy of the page script handling runs. The newest copy now replaces it.
+
 ### Changed
 - The toolbar icon and side panel are enabled only on App Store Connect tabs, and a run acts only on the tab the panel was opened from.
 - The activity log uses plain labels per step ("Store listing (en-US): up to date"), shows name changes as old to new, and ends with a per-app and overall summary.
@@ -27,4 +32,6 @@ First public release.
 - CSV validation: required columns, Apple's length limits, duplicate locales, email and phone checks, Excel `;` delimiter.
 - Google Play tab as a placeholder (coming soon).
 
+[Unreleased]: https://github.com/shahsawoodshinwari/launchsheet/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/shahsawoodshinwari/launchsheet/releases/tag/v0.1.1
 [0.1.0]: https://github.com/shahsawoodshinwari/launchsheet/releases/tag/v0.1.0
