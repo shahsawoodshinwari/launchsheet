@@ -2,13 +2,28 @@
 // It talks to Apple's web-app API ("iris"), which mirrors the public App Store Connect API resources.
 // NOTE: iris is undocumented and can change without notice.
 (() => {
-  if (window.__storeAutomatorLoaded) return;
-  window.__storeAutomatorLoaded = true;
+  // Re-injection replaces the previous message handler so the newest code always runs.
+  if (window.__launchsheetHandler) {
+    try { chrome.runtime.onMessage.removeListener(window.__launchsheetHandler); } catch { /* old context is gone */ }
+  }
 
   const IRIS = 'https://appstoreconnect.apple.com/iris/v1';
   const EDITABLE = new Set([
     'PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED', 'INVALID_BINARY',
   ]);
+
+  // Human-readable names for API fields, used in the activity log.
+  const FIELD = {
+    name: 'Name', subtitle: 'Subtitle', privacyPolicyUrl: 'Privacy policy URL',
+    description: 'Description', keywords: 'Keywords', promotionalText: 'Promotional text',
+    whatsNew: "What's New", supportUrl: 'Support URL', marketingUrl: 'Marketing URL', copyright: 'Copyright',
+    contactFirstName: 'Contact first name', contactLastName: 'Contact last name',
+    contactEmail: 'Contact email', contactPhone: 'Contact phone',
+    demoAccountName: 'Demo username', demoAccountPassword: 'Demo password',
+    demoAccountRequired: 'Sign-in required', notes: 'Review notes',
+  };
+  const PAST = { update: 'updated', create: 'created', add: 'added', set: 'set' };
+  const prettyCategory = (id) => id.toLowerCase().split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 
   const send = (level, text) =>
     chrome.runtime.sendMessage({ type: 'sa:log', level, text }).catch(() => {});
@@ -24,11 +39,15 @@
     let json = null;
     try { json = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
     if (!res.ok) {
-      if (res.status === 401 || res.status === 403) {
-        throw new Error(`${res.status}: not signed in to App Store Connect (or no permission). Sign in on this tab and retry.`);
-      }
-      const detail = json?.errors?.map((e) => e.detail || e.title).join('; ') || text.slice(0, 300);
-      throw new Error(`${method} ${path} -> ${res.status}: ${detail}`);
+      const detail = json?.errors?.map((e) => e.detail || e.title).join('; ') || text.slice(0, 300) || res.statusText;
+      const auth = res.status === 401 || res.status === 403;
+      const err = new Error(
+        auth ? 'Not signed in to App Store Connect, or your role lacks permission. Sign in on that tab and try again.' : detail,
+      );
+      err.status = res.status;
+      err.request = `${method} ${path}`;
+      console.warn('[Launchsheet]', err.request, res.status, detail); // technical detail stays in the page console
+      throw err;
     }
     return json;
   }
@@ -38,7 +57,7 @@
 
   function attrs(row, map) {
     const out = {};
-    for (const [csv, api] of Object.entries(map)) if (row[csv]) out[api] = row[csv];
+    for (const [csv, apiName] of Object.entries(map)) if (row[csv]) out[apiName] = row[csv];
     return out;
   }
 
@@ -93,25 +112,30 @@
     return (await api('POST', '/apps', body)).data;
   }
 
-  async function upsertLocalizations({ list, type, parentRel, parentType, parentId, rows, mapFor, act, log, failures }) {
+  async function upsertLocalizations({ area, list, type, parentRel, parentType, parentId, rows, mapFor, ctx }) {
+    const { act, same, log, failures } = ctx;
     const existing = new Map();
     const j = await api('GET', `${list}?limit=200`);
     for (const l of j.data ?? []) existing.set(l.attributes.locale, l);
 
     for (const row of rows) {
       const all = mapFor(row);
+      if (!Object.keys(all).length) continue;
       const current = existing.get(row.locale);
+      const label = `${area} (${row.locale})`;
+
       // Only send fields that actually differ from what App Store Connect already has.
       const a = current
         ? Object.fromEntries(Object.entries(all).filter(([k, v]) => (current.attributes[k] ?? '') !== v))
         : all;
-      if (!Object.keys(a).length) {
-        if (Object.keys(all).length) log('info', `  ${type} [${row.locale}] already up to date`);
-        continue;
-      }
+      if (!Object.keys(a).length) { same(label); continue; }
+
       const id = current?.id;
-      const nameNote = current && a.name ? ` (name: "${current.attributes.name}" -> "${a.name}")` : '';
-      const label = `${type} [${row.locale}] ${id ? 'update' : 'create'}: ${Object.keys(a).join(', ')}${nameNote}`;
+      const verb = id ? 'update' : 'add';
+      const describe = (x) =>
+        Object.keys(x)
+          .map((k) => (k === 'name' && current ? `Name ("${current.attributes.name}" → "${x.name}")` : FIELD[k] || k))
+          .join(', ');
       const write = (attributes) =>
         id
           ? api('PATCH', `/${type}/${id}`, { data: { type, id, attributes } })
@@ -124,13 +148,13 @@
             });
       try {
         try {
-          await act(label, () => write(a));
+          await act(label, verb, describe(a), () => write(a));
         } catch (err) {
           // "What's New" cannot be set on an app's first version; retry without it.
-          if (a.whatsNew && /whatsNew/i.test(err.message)) {
+          if (a.whatsNew && /whatsNew|what's new/i.test(err.message)) {
             const { whatsNew, ...rest } = a;
-            log('warn', `  whatsNew skipped for ${row.locale} (not allowed on a first version).`);
-            if (Object.keys(rest).length) await act(label + ' (retry)', () => write(rest));
+            log('warn', `  ${label}: "What's New" skipped (not allowed on an app's first version)`);
+            if (Object.keys(rest).length) await act(label, verb, describe(rest), () => write(rest));
           } else throw err;
         }
       } catch (err) {
@@ -144,35 +168,51 @@
   async function processApp(app, dryRun) {
     const log = send;
     const failures = [];
-    const act = async (desc, fn) => {
-      if (dryRun) { log('plan', `  would ${desc}`); return null; }
+    const stats = { changed: 0, same: 0 };
+
+    const same = (area) => { stats.same++; log('info', `  ${area}: up to date`); };
+    const act = async (area, verb, detail, fn) => {
+      if (dryRun) {
+        stats.changed++;
+        log('plan', `  ${area}: would ${verb} ${detail}`);
+        return null;
+      }
       const r = await fn();
-      log('ok', `  ${desc}`);
+      stats.changed++;
+      log('ok', `  ${area}: ${PAST[verb] || verb} ${detail}`);
       return r;
     };
+    const ctx = { act, same, log, failures };
 
-    log('info', `▶ ${app.bundle_id}`);
     const first = app.rows.find((r) => r.locale === app.primary_locale) || app.rows[0];
-
-    let existing = await findApp(app.bundle_id);
+    const existing = await findApp(app.bundle_id);
     let appId = existing?.id;
+
     if (existing) {
-      log('info', `  found existing app "${existing.attributes.name}" (${appId})`);
+      log('info', `▶ ${existing.attributes.name}  (${app.bundle_id})`);
+      log('info', '  App found in App Store Connect');
     } else {
+      log('info', `▶ ${first.name || app.bundle_id}  (${app.bundle_id})`);
+      log('info', '  App not found in App Store Connect');
       if (!app.sku || !first.name) {
-        throw new Error('app does not exist yet; sku and name are required to create it');
+        throw new Error('To create this app the CSV needs a sku and a name.');
       }
-      const created = await act(`create app "${first.name}" (sku ${app.sku}, ${app.primary_locale})`, () => createApp(app, first));
+      const created = await act('App', 'create', `"${first.name}" (SKU ${app.sku}, ${app.primary_locale})`, () => createApp(app, first));
       appId = created?.id;
-      if (!appId) return; // dry run, nothing more to read
+      if (!appId) {
+        log('info', '  The remaining steps run once the app exists.');
+        return stats;
+      }
     }
 
     // --- Version-level metadata ---
     const versions = await api('GET', `/apps/${appId}/appStoreVersions?filter[platform]=IOS&limit=20`);
     let version = versions.data?.find((v) => EDITABLE.has(stateOf(v)));
     if (!version) {
-      if (!app.version) throw new Error('no editable version exists; add a "version" value to create one');
-      const created = await act(`create version ${app.version}`, () =>
+      if (!app.version) {
+        throw new Error('No editable version exists. Add a "version" value to the CSV to create one.');
+      }
+      const created = await act('Version', 'create', app.version, () =>
         api('POST', '/appStoreVersions', {
           data: {
             type: 'appStoreVersions',
@@ -182,16 +222,29 @@
         }),
       );
       version = created?.data;
+    } else {
+      log('info', `  Editing version ${version.attributes.versionString} (${stateOf(version)})`);
     }
+
     if (version) {
       if (app.copyright) {
-        await act(`set copyright`, () =>
-          api('PATCH', `/appStoreVersions/${version.id}`, {
-            data: { type: 'appStoreVersions', id: version.id, attributes: { copyright: app.copyright } },
-          }),
-        );
+        if ((version.attributes?.copyright ?? '') === app.copyright) same('Copyright');
+        else {
+          try {
+            await act('Copyright', 'set', `"${app.copyright}"`, () =>
+              api('PATCH', `/appStoreVersions/${version.id}`, {
+                data: { type: 'appStoreVersions', id: version.id, attributes: { copyright: app.copyright } },
+              }),
+            );
+          } catch (err) {
+            failures.push('Copyright');
+            log('err', `  ✖ Copyright: ${err.message}`);
+          }
+        }
       }
+
       await upsertLocalizations({
+        area: 'Store listing',
         list: `/appStoreVersions/${version.id}/appStoreVersionLocalizations`,
         type: 'appStoreVersionLocalizations',
         parentRel: 'appStoreVersion',
@@ -202,7 +255,7 @@
           description: 'description', keywords: 'keywords', promotional_text: 'promotionalText',
           whats_new: 'whatsNew', support_url: 'supportUrl', marketing_url: 'marketingUrl',
         }),
-        act, log, failures,
+        ctx,
       });
 
       // --- App Review information (contact + demo account + notes) ---
@@ -213,28 +266,29 @@
       });
       if (review.demoAccountName || review.demoAccountPassword) review.demoAccountRequired = true;
       if (Object.keys(review).length) {
+        const area = 'App Review info';
         try {
           let cur = null;
           try {
             cur = (await api('GET', `/appStoreVersions/${version.id}/appStoreReviewDetail`)).data ?? null;
           } catch (err) {
-            if (!/ 404/.test(err.message)) throw err; // 404 = no review details yet
+            if (err.status !== 404) throw err; // 404 = no review details yet
           }
           const changed = cur
             ? Object.fromEntries(Object.entries(review).filter(([k, v]) => (cur.attributes?.[k] ?? '') !== v))
             : review;
-          // Log field names only; never print the password.
-          const names = Object.keys(changed).join(', ');
+          // Field names only; values (like the password) are never logged.
+          const detail = Object.keys(changed).map((k) => FIELD[k] || k).join(', ');
           if (!Object.keys(changed).length) {
-            log('info', '  appStoreReviewDetails already up to date');
+            same(area);
           } else if (cur) {
-            await act(`appStoreReviewDetails update: ${names}`, () =>
+            await act(area, 'update', detail, () =>
               api('PATCH', `/appStoreReviewDetails/${cur.id}`, {
                 data: { type: 'appStoreReviewDetails', id: cur.id, attributes: changed },
               }),
             );
           } else {
-            await act(`appStoreReviewDetails create: ${names}`, () =>
+            await act(area, 'add', detail, () =>
               api('POST', '/appStoreReviewDetails', {
                 data: {
                   type: 'appStoreReviewDetails',
@@ -245,8 +299,8 @@
             );
           }
         } catch (err) {
-          failures.push('review details');
-          log('err', `  ✖ appStoreReviewDetails: ${err.message}`);
+          failures.push(area);
+          log('err', `  ✖ ${area}: ${err.message}`);
         }
       }
     }
@@ -254,9 +308,10 @@
     // --- App-level info (name, subtitle, privacy URL, categories) ---
     const infos = await api('GET', `/apps/${appId}/appInfos`);
     const info = infos.data?.find((i) => EDITABLE.has(stateOf(i))) ?? infos.data?.[0];
-    if (!info) throw new Error('no appInfo found for this app');
+    if (!info) throw new Error('No app info record was found for this app.');
 
     await upsertLocalizations({
+      area: 'App info',
       list: `/appInfos/${info.id}/appInfoLocalizations`,
       type: 'appInfoLocalizations',
       parentRel: 'appInfo',
@@ -264,7 +319,7 @@
       parentId: info.id,
       rows: app.rows,
       mapFor: (r) => attrs(r, { name: 'name', subtitle: 'subtitle', privacy_policy_url: 'privacyPolicyUrl' }),
-      act, log, failures,
+      ctx,
     });
 
     // Accept "Health & Fitness", "health and fitness" or HEALTH_AND_FITNESS.
@@ -279,51 +334,74 @@
         } catch { /* can't list categories; let Apple validate */ }
         for (const [col, id] of [['primary_category', primary], ['secondary_category', secondary]]) {
           if (id && valid && !valid.has(id)) {
-            throw new Error(`${col} "${id}" is not a valid category ID. Valid: ${[...valid].sort().join(', ')}`);
+            throw new Error(`${col} "${id}" is not a valid category. Valid IDs: ${[...valid].sort().join(', ')}`);
           }
         }
-        if (primary && primary === secondary) throw new Error('primary_category and secondary_category must differ');
+        if (primary && primary === secondary) throw new Error('primary_category and secondary_category must be different.');
 
-        const relationships = {};
-        if (primary) relationships.primaryCategory = { data: { type: 'appCategories', id: primary } };
-        if (secondary) relationships.secondaryCategory = { data: { type: 'appCategories', id: secondary } };
-        await act(`set categories (${primary || '-'} / ${secondary || '-'})`, () =>
-          api('PATCH', `/appInfos/${info.id}`, { data: { type: 'appInfos', id: info.id, relationships } }),
-        );
+        // Skip the write when the app already has these categories.
+        let curPrimary = null;
+        let curSecondary = null;
+        try {
+          const rel = (await api('GET', `/appInfos/${info.id}?include=primaryCategory,secondaryCategory`)).data?.relationships;
+          curPrimary = rel?.primaryCategory?.data?.id ?? null;
+          curSecondary = rel?.secondaryCategory?.data?.id ?? null;
+        } catch { /* unknown; fall through and write */ }
+
+        const wanted = [primary && prettyCategory(primary), secondary && prettyCategory(secondary)].filter(Boolean).join(' / ');
+        const upToDate = (!primary || primary === curPrimary) && (!secondary || secondary === curSecondary);
+        if (upToDate && (curPrimary || curSecondary)) {
+          same('Categories');
+        } else {
+          const relationships = {};
+          if (primary) relationships.primaryCategory = { data: { type: 'appCategories', id: primary } };
+          if (secondary) relationships.secondaryCategory = { data: { type: 'appCategories', id: secondary } };
+          await act('Categories', 'set', wanted, () =>
+            api('PATCH', `/appInfos/${info.id}`, { data: { type: 'appInfos', id: info.id, relationships } }),
+          );
+        }
       } catch (err) {
-        failures.push('categories');
-        log('err', `  ✖ categories: ${err.message}`);
+        failures.push('Categories');
+        log('err', `  ✖ Categories: ${err.message}`);
       }
     }
 
-    if (failures.length) throw new Error(`${failures.length} update(s) failed (see errors above)`);
+    const verb = dryRun ? 'would change' : 'changed';
+    log('info', `  ${stats.changed} ${verb}, ${stats.same} already up to date`);
+    if (failures.length) {
+      throw new Error(`${failures.length} step${failures.length === 1 ? '' : 's'} failed: ${failures.join(', ')}`);
+    }
+    return stats;
   }
 
   async function run({ apps, dryRun }) {
-    let succeeded = 0;
-    let failed = 0;
+    const totals = { succeeded: 0, failed: 0, changed: 0, unchanged: 0 };
     try {
       await api('GET', '/apps?limit=1'); // auth check
     } catch (err) {
       send('err', err.message);
-      return { succeeded, failed: apps.length };
+      return { ...totals, failed: apps.length };
     }
     for (const app of apps) {
       try {
-        await processApp(app, dryRun);
-        succeeded++;
+        const s = await processApp(app, dryRun);
+        totals.succeeded++;
+        totals.changed += s.changed;
+        totals.unchanged += s.same;
       } catch (err) {
-        failed++;
+        totals.failed++;
         send('err', `  ✖ ${app.bundle_id}: ${err.message}`);
       }
     }
-    return { succeeded, failed };
+    return totals;
   }
 
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  const handler = (msg, _sender, sendResponse) => {
     if (msg?.type === 'sa:run') {
       run(msg).then(sendResponse);
       return true; // async response
     }
-  });
+  };
+  window.__launchsheetHandler = handler;
+  chrome.runtime.onMessage.addListener(handler);
 })();

@@ -57,7 +57,7 @@ Then load the cloned folder with **Load unpacked** as above. Requires Chrome 114
 ## Usage
 
 1. Sign in at [appstoreconnect.apple.com](https://appstoreconnect.apple.com) in a Chrome tab and keep it open.
-2. Click the Launchsheet toolbar icon to open the side panel.
+2. On that tab, click the Launchsheet toolbar icon to open the side panel. The icon and panel are only enabled on App Store Connect tabs, and the panel only acts on the tab it was opened from.
 3. **Choose file** and pick your CSV. The panel validates it and shows a preview. Fix any errors it lists.
 4. Leave **Dry run** on and press **Run dry run**. Read the activity log.
 5. Turn **Dry run** off and press **Run and apply changes** (you'll be asked to confirm).
@@ -107,7 +107,7 @@ CSV  ->  side panel (parse + validate)  ->  content script in the App Store Conn
 
 ## Privacy and security
 
-- Launchsheet only requests access to `https://appstoreconnect.apple.com/*`. It does not contact any other server and has no analytics.
+- Launchsheet only requests access to `https://appstoreconnect.apple.com/*`. It does not contact any other server and has no analytics. The toolbar icon and side panel stay disabled on every other site, and a run only touches the single tab it was opened from.
 - Your CSV is read in the browser and never uploaded anywhere except to App Store Connect as part of the requested changes.
 - Passwords from the CSV are sent to App Store Connect but are never written to the activity log.
 - **Keep CSVs that contain demo passwords out of git and shared folders.** This repository's `.gitignore` excludes `*.csv` except the sample.

@@ -1,9 +1,11 @@
 import { parseApps } from './csv.js';
+import { renderPreview } from './preview.js';
 
 const $ = (s) => document.querySelector(s);
 let apps = [];
 let hasErrors = true;
 let running = false;
+let confirming = false;
 
 // ---------- Activity log ----------
 const PREFIX = { ok: '✓ ', warn: '! ', plan: '→ ' };
@@ -35,9 +37,11 @@ function refresh() {
   btn.replaceChildren();
   if (running) btn.append(Object.assign(document.createElement('span'), { className: 'spinner' }));
   btn.append(running ? 'Running…' : dry ? 'Run dry run' : 'Run and apply changes');
+  btn.hidden = confirming;
+  $('#confirm').hidden = !confirming;
   $('#liveNote').hidden = dry;
 }
-$('#dry').addEventListener('change', refresh);
+$('#dry').addEventListener('change', () => { confirming = false; refresh(); });
 
 // ---------- File loading ----------
 function fill(box, list, items) {
@@ -50,6 +54,7 @@ async function loadFile(file) {
   const res = parseApps(await file.text());
   apps = res.apps;
   hasErrors = res.errors.length > 0;
+  confirming = false;
 
   $('#fileName').textContent = file.name;
   $('#stats').hidden = false;
@@ -57,17 +62,7 @@ async function loadFile(file) {
   fill($('#errorsBox'), $('#errors'), res.errors);
   fill($('#warningsBox'), $('#warnings'), res.warnings);
 
-  const body = $('#preview');
-  body.replaceChildren();
-  for (const app of apps) {
-    for (const r of app.rows) {
-      const tr = document.createElement('tr');
-      for (const [text, cls] of [[app.bundle_id, 'mono'], [r.locale, 'mono'], [r.name || '—', '']]) {
-        tr.appendChild(Object.assign(document.createElement('td'), { textContent: text, className: cls }));
-      }
-      body.appendChild(tr);
-    }
-  }
+  renderPreview($('#preview'), apps);
   $('#previewCard').hidden = apps.length === 0;
 
   $('#log').replaceChildren();
@@ -87,47 +82,74 @@ for (const ev of ['dragleave', 'drop']) {
 }
 sec.addEventListener('drop', (e) => loadFile(e.dataTransfer.files[0]));
 
-// ---------- App Store Connect tab status ----------
-const ASC = 'https://appstoreconnect.apple.com/*';
-async function findTab() {
-  const tabs = await chrome.tabs.query({ url: ASC });
-  return tabs.find((t) => t.active) ?? tabs[0];
+// ---------- The one tab this panel works on ----------
+// Only the active tab of this window is used, and only if it is App Store Connect.
+const ASC_ORIGIN = 'https://appstoreconnect.apple.com';
+async function currentTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  try {
+    return tab && new URL(tab.url).origin === ASC_ORIGIN ? tab : null;
+  } catch { return null; }
 }
 async function checkConn() {
-  const tab = await findTab();
+  const tab = await currentTab();
   $('#conn').className = 'conn ' + (tab ? 'on' : 'off');
   $('#conn').textContent = tab
-    ? 'App Store Connect tab found.'
-    : 'No App Store Connect tab. Open appstoreconnect.apple.com and sign in.';
+    ? 'Connected to this App Store Connect tab.'
+    : 'Switch to your App Store Connect tab to run.';
 }
 checkConn();
-for (const ev of ['onUpdated', 'onRemoved', 'onActivated', 'onCreated']) chrome.tabs[ev].addListener(checkConn);
+for (const ev of ['onUpdated', 'onRemoved', 'onActivated']) chrome.tabs[ev].addListener(checkConn);
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.type === 'sa:log') log(msg.level, msg.text);
 });
 
-// ---------- Run ----------
-$('#run').addEventListener('click', async () => {
-  const dryRun = $('#dry').checked;
-  const tab = await findTab();
-  if (!tab) { log('err', 'No App Store Connect tab found. Open appstoreconnect.apple.com and sign in.'); return; }
-  if (!dryRun && !confirm(`Apply changes to ${apps.length} app(s) in App Store Connect?`)) return;
+// ---------- Run (live runs ask for confirmation inline, no browser dialog) ----------
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+$('#run').addEventListener('click', () => {
+  if ($('#dry').checked) return start(true);
+  $('#confirmText').textContent = `Save changes to ${plural(apps.length, 'app')} in App Store Connect?`;
+  confirming = true;
+  refresh();
+});
+$('#confirmNo').addEventListener('click', () => { confirming = false; refresh(); });
+$('#confirmYes').addEventListener('click', () => { confirming = false; start(false); });
+
+async function start(dryRun) {
+  const tab = await currentTab();
+  if (!tab) {
+    log('err', 'Open your App Store Connect tab and run Launchsheet from there.');
+    refresh();
+    return;
+  }
 
   running = true;
   refresh();
   $('#log').replaceChildren();
-  log('info', dryRun ? 'Dry run started…' : 'Run started…');
+  log('info', dryRun ? 'Dry run: nothing will be saved.' : 'Saving changes to App Store Connect…');
   try {
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content/asc.js'] });
-    const res = await chrome.tabs.sendMessage(tab.id, { type: 'sa:run', apps, dryRun });
-    log(res.failed ? 'warn' : 'ok', `Done: ${res.succeeded} succeeded, ${res.failed} failed.`);
+    const r = await chrome.tabs.sendMessage(tab.id, { type: 'sa:run', apps, dryRun });
+    const checked = plural(r.succeeded + r.failed, 'app');
+    if (r.failed) {
+      log('warn', `Finished with problems: ${plural(r.failed, 'app')} failed out of ${checked}. See the lines marked ✖.`);
+    } else if (dryRun) {
+      log('ok', r.changed
+        ? `Dry run complete: ${plural(r.changed, 'change')} would be made across ${checked}. Turn off Dry run to apply them.`
+        : `Dry run complete: ${checked} checked, everything is already up to date.`);
+    } else {
+      log('ok', r.changed
+        ? `Done: ${plural(r.changed, 'change')} saved across ${checked}.`
+        : `Done: ${checked} checked, nothing needed changing.`);
+    }
   } catch (err) {
     log('err', String(err?.message || err));
   } finally {
     running = false;
     refresh();
   }
-});
+}
 
 refresh();

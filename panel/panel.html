@@ -34,12 +34,8 @@
 
     <section id="previewCard" hidden>
       <h2>Preview</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Bundle ID</th><th>Locale</th><th>Name</th></tr></thead>
-          <tbody id="preview"></tbody>
-        </table>
-      </div>
+      <p class="muted hint">Empty cells are left unchanged in App Store Connect.</p>
+      <div id="preview"></div>
     </section>
 
     <section>
@@ -64,6 +60,13 @@
 
   <footer class="bar">
     <button id="run" class="btn primary" type="button" disabled>Run dry run</button>
+    <div id="confirm" class="confirm" hidden>
+      <p id="confirmText"></p>
+      <div class="confirm-actions">
+        <button id="confirmNo" class="btn" type="button">Cancel</button>
+        <button id="confirmYes" class="btn primary live" type="button">Save changes</button>
+      </div>
+    </div>
   </footer>
 
   <script type="module" src="panel.js"></script>

@@ -11,6 +11,6 @@
   },
   "scripts": {
     "test": "node --test \"tests/*.test.mjs\"",
-    "check": "node --check background.js && node --check content/asc.js && node --check panel/panel.js && node --check panel/csv.js"
+    "check": "node --check background.js && node --check content/asc.js && node --check panel/panel.js && node --check panel/csv.js && node --check panel/preview.js"
   }
 }

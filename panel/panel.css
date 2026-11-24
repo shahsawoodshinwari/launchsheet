@@ -86,13 +86,26 @@ h2 { display: flex; align-items: center; margin: 0 0 6px; font-size: 13px; font-
 .msg.warn { border-left-color: var(--warn); } .msg.warn b { color: var(--warn); }
 p.msg.warn { color: var(--warn); }
 
-/* Table */
-.table-wrap { max-height: 170px; overflow: auto; border: 1px solid var(--line); border-radius: 4px; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th { position: sticky; top: 0; background: var(--subtle); text-align: left; font-weight: 500; color: var(--muted); }
-th, td { padding: 4px 8px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
-tbody tr:last-child td { border-bottom: 0; }
+/* Preview */
 .mono { font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; }
+.hint { margin: 0 0 8px; font-size: 12px; }
+.app { border: 1px solid var(--line); border-radius: 4px; margin-bottom: 8px; }
+.app summary, .loc summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; cursor: pointer; list-style: none; }
+.app summary::-webkit-details-marker, .loc summary::-webkit-details-marker { display: none; }
+.app summary::before, .loc summary::before { content: "▸"; color: var(--muted); width: 10px; }
+.app[open] > summary::before, .loc[open] > summary::before { content: "▾"; }
+.app > summary { padding: 8px 10px; }
+.app .title { font-weight: 500; }
+.loc { border-top: 1px solid var(--line); }
+.loc > summary { padding: 6px 10px; font-size: 12px; }
+dl.kv {
+  margin: 0; padding: 2px 10px 8px 20px; display: grid; grid-template-columns: 108px minmax(0, 1fr);
+  gap: 3px 10px; font-size: 12px;
+}
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; overflow-wrap: anywhere; }
+.count { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.count.bad { color: var(--err); font-weight: 500; }
 
 /* Setting row with toggle (like chrome://settings) */
 .setting { display: flex; align-items: center; gap: 12px; cursor: pointer; }
@@ -121,7 +134,11 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* Footer */
 .bar { padding: 10px 12px; border-top: 1px solid var(--line); background: var(--bg); }
-.bar .btn { width: 100%; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.bar .btn { height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.bar #run { width: 100%; }
+.confirm p { margin: 0 0 8px; font-weight: 500; }
+.confirm-actions { display: flex; gap: 8px; }
+.confirm-actions .btn { flex: 1; }
 .spinner { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }

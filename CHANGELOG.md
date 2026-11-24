@@ -2,6 +2,15 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The toolbar icon and side panel are enabled only on App Store Connect tabs, and a run acts only on the tab the panel was opened from.
+- The activity log uses plain labels per step ("Store listing (en-US): up to date"), shows name changes as old to new, and ends with a per-app and overall summary.
+- Applying changes is confirmed inline in the panel instead of a browser dialog.
+- Categories are skipped when the app already has them.
+- The CSV preview shows every value the run will use: app details (SKU, version, categories, review contact, demo account with the password masked) and, per locale, all listing fields with character counts. Empty fields are marked as left unchanged.
+
 ## [0.1.0] - 2026-11-25
 
 First public release.
