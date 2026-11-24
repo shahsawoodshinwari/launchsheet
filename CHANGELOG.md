@@ -18,4 +18,4 @@ First public release.
 - CSV validation: required columns, Apple's length limits, duplicate locales, email and phone checks, Excel `;` delimiter.
 - Google Play tab as a placeholder (coming soon).
 
-[0.1.0]: https://github.com/shahsawoodshinwari/store-automation/releases/tag/v0.1.0
+[0.1.0]: https://github.com/shahsawoodshinwari/launchsheet/releases/tag/v0.1.0

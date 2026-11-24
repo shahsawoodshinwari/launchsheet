@@ -33,14 +33,14 @@ Not covered yet: screenshots and previews, age rating, pricing and availability,
 
 **From a release (recommended)**
 
-1. Download `launchsheet-vX.Y.Z.zip` from the [Releases page](https://github.com/shahsawoodshinwari/store-automation/releases) and unzip it.
+1. Download `launchsheet-vX.Y.Z.zip` from the [Releases page](https://github.com/shahsawoodshinwari/launchsheet/releases) and unzip it.
 2. Open `chrome://extensions` and turn on **Developer mode**.
 3. Click **Load unpacked** and choose the unzipped folder (the one containing `manifest.json`).
 
 **From source**
 
 ```bash
-git clone https://github.com/shahsawoodshinwari/store-automation.git
+git clone https://github.com/shahsawoodshinwari/launchsheet.git
 ```
 
 Then load the cloned folder with **Load unpacked** as above. Requires Chrome 114 or newer (side panel support).

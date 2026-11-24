@@ -3,7 +3,7 @@
   "name": "Launchsheet",
   "version": "0.1.0",
   "description": "Create and update App Store Connect apps from a CSV spreadsheet. Google Play coming soon.",
-  "homepage_url": "https://github.com/shahsawoodshinwari/store-automation",
+  "homepage_url": "https://github.com/shahsawoodshinwari/launchsheet",
   "minimum_chrome_version": "114",
   "permissions": ["sidePanel", "scripting"],
   "host_permissions": ["https://appstoreconnect.apple.com/*"],
