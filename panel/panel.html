@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Launchsheet</title>
+<link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <header class="top">
+    <img class="logo" src="../icons/icon-48.png" alt="">
+    <h1>Launchsheet</h1>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" role="tab" aria-selected="true">App Store</button>
+    <button class="tab" role="tab" disabled>Google Play (coming soon)</button>
+  </nav>
+
+  <main>
+    <p id="conn" class="conn">Checking for an App Store Connect tab…</p>
+
+    <section id="importSec">
+      <h2>CSV file</h2>
+      <div class="row">
+        <button id="pick" class="btn" type="button">Choose file</button>
+        <span id="fileName" class="muted">No file chosen. You can also drop one here.</span>
+      </div>
+      <input id="file" type="file" accept=".csv,text/csv" hidden>
+      <p id="stats" class="muted" hidden></p>
+      <div id="errorsBox" class="msg err" hidden><b>Fix before running</b><ul id="errors"></ul></div>
+      <div id="warningsBox" class="msg warn" hidden><b>Warnings</b><ul id="warnings"></ul></div>
+    </section>
+
+    <section id="previewCard" hidden>
+      <h2>Preview</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Bundle ID</th><th>Locale</th><th>Name</th></tr></thead>
+          <tbody id="preview"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Options</h2>
+      <label class="setting" for="dry">
+        <span class="text"><b>Dry run</b><span class="muted">Only read from App Store Connect and list what would change.</span></span>
+        <input id="dry" class="switch" type="checkbox" role="switch" checked>
+      </label>
+      <p id="liveNote" class="msg warn" hidden>Dry run is off. Changes will be saved to App Store Connect.</p>
+    </section>
+
+    <section>
+      <h2>Activity
+        <span class="actions">
+          <button id="copyLog" class="link" type="button">Copy</button>
+          <button id="clearLog" class="link" type="button">Clear</button>
+        </span>
+      </h2>
+      <div id="log" role="log" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="bar">
+    <button id="run" class="btn primary" type="button" disabled>Run dry run</button>
+  </footer>
+
+  <script type="module" src="panel.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "launchsheet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome extension that creates and updates App Store Connect apps from a CSV spreadsheet.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shahsawoodshinwari/store-automation.git"
+  },
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\"",
+    "check": "node --check background.js && node --check content/asc.js && node --check panel/panel.js && node --check panel/csv.js"
+  }
+}

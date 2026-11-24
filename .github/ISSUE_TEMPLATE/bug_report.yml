@@ -1,0 +1,32 @@
+name: Bug report
+description: Something failed or behaved unexpectedly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please **remove passwords, tokens and personal data** from anything you paste.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you get?
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Activity log
+      description: Use the Copy button in the Activity section. Dry run output is fine.
+      render: text
+  - type: textarea
+    id: csv
+    attributes:
+      label: CSV (redacted)
+      description: The header row plus the row that failed, with sensitive values replaced.
+      render: text
+  - type: input
+    id: versions
+    attributes:
+      label: Launchsheet and Chrome versions
+      placeholder: "0.1.0 / Chrome 131"

@@ -1,0 +1,4 @@
+platform,bundle_id,sku,primary_locale,version,copyright,primary_category,secondary_category,locale,name,subtitle,description,keywords,promotional_text,whats_new,support_url,marketing_url,privacy_policy_url,contact_first_name,contact_last_name,contact_email,contact_phone_number,username,password,notes
+ios,com.example.todo,TODO-001,en-US,1.0,2026 Example Inc.,PRODUCTIVITY,UTILITIES,en-US,Example Todo,Simple daily tasks,"A fast, simple to-do app.
+Plan your day in seconds.","todo,tasks,planner,checklist",Get organised today.,,https://example.com/support,https://example.com,https://example.com/privacy,Jane,Doe,jane@example.com,+1 555 123 4567,reviewer@example.com,example-password,Sign in with the demo account to see sample tasks.
+ios,com.example.todo,,,,,,,de-DE,Beispiel Todo,Einfache Tagesaufgaben,"Eine schnelle, einfache To-do-App.","aufgaben,planer,liste",,,https://example.com/support,https://example.com,https://example.com/privacy,,,,,,,

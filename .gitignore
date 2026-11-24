@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.zip
+.DS_Store
+Thumbs.db
+.claude/
+
+# Large source artwork; the extension uses the resized files in icons/
+Blue Upload Platform Icon.png
+
+# Real data: never commit CSVs that contain credentials
+*.csv
+!sample/*.csv
+
+# Spreadsheets may hold real data
+*.xlsx
+*.xls
