@@ -30,6 +30,21 @@ test('preview model never exposes the demo password', () => {
   assert.ok(!JSON.stringify(m).includes('example-password'));
 });
 
+test('Android preview shows package, language, type, pricing, declarations and the three listing fields', () => {
+  const app = parseApps(fs.readFileSync(new URL('../sample/apps.csv', import.meta.url), 'utf8')).apps[1];
+  const m = previewModel(app);
+  const f = Object.fromEntries(m.appFields.map((x) => [x.label, x.value]));
+  assert.equal(m.platform, 'android');
+  assert.equal(f['Package name'], 'com.example.todo');
+  assert.equal(f['App or game'], 'App');
+  assert.equal(f['Free or paid'], 'Free');
+  assert.match(f.Declarations, /^Accepted/);
+  const en = m.locales[0];
+  assert.deepEqual(en.fields.map((x) => x.label), ['Name', 'Short description', 'Full description']);
+  assert.equal(en.fields[1].limit, 80);
+  assert.equal(en.set, 3);
+});
+
 test('unset fields are empty strings so the UI can say "left unchanged"', () => {
   const de = previewModel(sample()).locales[1];
   assert.equal(de.fields.find((f) => f.label === 'Promotional text').value, '');

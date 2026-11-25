@@ -4,6 +4,12 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+### Added
+- Google Play support (early): a working Google Play tab in the panel, `android` rows in the CSV, and a Play Console runner that finds apps by exact package name, creates missing apps (name, package name, default language, app or game, free or paid, declarations) and edits the default store listing per language (name, short description, full description) as drafts.
+- New CSV columns: `short_description`, `app_type`, `pricing`, `accept_declarations`. The same ID may appear once per platform.
+- The toolbar icon and side panel are also enabled on `play.google.com/console`, with host access limited to that path.
+- Android validation: package name format, locale format, field limits, single-line short description, and a warning when declarations are not accepted.
+
 ## [0.1.1] - 2026-11-25
 
 ### Fixed

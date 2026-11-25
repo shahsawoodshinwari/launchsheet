@@ -1,7 +1,7 @@
 // Preview of what a CSV will do. previewModel() is pure (and tested); renderPreview() builds the DOM.
 
 // [csv column, label, character limit, long text?]
-const LOCALE_FIELDS = [
+const IOS_FIELDS = [
   ['name', 'Name', 30, false],
   ['subtitle', 'Subtitle', 30, false],
   ['keywords', 'Keywords', 100, false],
@@ -13,19 +13,33 @@ const LOCALE_FIELDS = [
   ['privacy_policy_url', 'Privacy policy URL', 0, false],
 ];
 
+const ANDROID_FIELDS = [
+  ['name', 'Name', 30, false],
+  ['short_description', 'Short description', 80, false],
+  ['description', 'Full description', 4000, true],
+];
+
 const MASK = '••••••••'; // never show the real password, or its length
 
 export function previewModel(app) {
   const first = app.rows.find((r) => r.locale === app.primary_locale) || app.rows[0];
-  const contact = [[app.contact_first_name, app.contact_last_name].filter(Boolean).join(' '), app.contact_email, app.contact_phone_number]
-    .filter(Boolean)
-    .join(' · ');
-  const demo = app.username ? `${app.username} · ${MASK}` : app.password ? MASK : '';
+  const android = app.platform === 'android';
 
-  return {
-    title: first?.name || app.bundle_id,
-    bundleId: app.bundle_id,
-    appFields: [
+  let appFields;
+  if (android) {
+    appFields = [
+      { label: 'Package name', value: app.bundle_id },
+      { label: 'Default language', value: app.primary_locale },
+      { label: 'App or game', value: app.app_type === 'game' ? 'Game' : 'App' },
+      { label: 'Free or paid', value: app.pricing === 'paid' ? 'Paid' : 'Free' },
+      { label: 'Declarations', value: /^(y|yes|true|1|x)$/i.test(app.accept_declarations || '') ? 'Accepted (policies, US export laws)' : '' },
+    ];
+  } else {
+    const contact = [[app.contact_first_name, app.contact_last_name].filter(Boolean).join(' '), app.contact_email, app.contact_phone_number]
+      .filter(Boolean)
+      .join(' · ');
+    const demo = app.username ? `${app.username} · ${MASK}` : app.password ? MASK : '';
+    appFields = [
       { label: 'SKU', value: app.sku },
       { label: 'Version', value: app.version },
       { label: 'Primary language', value: app.primary_locale },
@@ -34,9 +48,17 @@ export function previewModel(app) {
       { label: 'Review contact', value: contact },
       { label: 'Demo account', value: demo },
       { label: 'Review notes', value: app.notes, limit: 4000, long: true },
-    ],
+    ];
+  }
+
+  const localeFields = android ? ANDROID_FIELDS : IOS_FIELDS;
+  return {
+    platform: android ? 'android' : 'ios',
+    title: first?.name || app.bundle_id,
+    bundleId: app.bundle_id,
+    appFields,
     locales: app.rows.map((r) => {
-      const fields = LOCALE_FIELDS.map(([key, label, limit, long]) => ({ label, value: r[key] || '', limit, long }));
+      const fields = localeFields.map(([key, label, limit, long]) => ({ label, value: r[key] || '', limit, long }));
       return { locale: r.locale, fields, set: fields.filter((f) => f.value).length, total: fields.length };
     }),
   };
